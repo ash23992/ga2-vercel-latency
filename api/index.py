@@ -20,7 +20,7 @@ class RequestBody(BaseModel):
     regions: List[str]
     threshold_ms: float
 
-@app.post("/latency")
+@app.post("/")
 async def latency(data: RequestBody):
     file_path = os.path.join(os.path.dirname(__file__), "..", "q-vercel-latency.json")
 
