@@ -8,11 +8,11 @@ from typing import List
 
 app = FastAPI()
 
-# Enable CORS
+# ✅ Proper CORS for Vercel (must allow OPTIONS too)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -20,10 +20,15 @@ class RequestBody(BaseModel):
     regions: List[str]
     threshold_ms: float
 
-@app.post("/api/latency")
+
+@app.post("/latency")
 async def latency(data: RequestBody):
-    # Load telemetry data
-    with open("q-vercel-latency.json") as f:
+
+    # ✅ Safe file loading on Vercel
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(BASE_DIR, "../q-vercel-latency.json")
+
+    with open(file_path) as f:
         records = json.load(f)
 
     response = {}
@@ -38,8 +43,14 @@ async def latency(data: RequestBody):
         uptimes = [r["uptime"] for r in region_records]
 
         avg_latency = statistics.mean(latencies)
-        p95_latency = sorted(latencies)[int(len(latencies) * 0.95) - 1]
+
+        # Proper p95 calculation
+        sorted_lat = sorted(latencies)
+        index = int(0.95 * len(sorted_lat)) - 1
+        p95_latency = sorted_lat[max(index, 0)]
+
         avg_uptime = statistics.mean(uptimes)
+
         breaches = sum(1 for l in latencies if l > data.threshold_ms)
 
         response[region] = {
