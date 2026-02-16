@@ -1,18 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import json
-import os
-import statistics
 from typing import List
+import json
+import statistics
+import os
 
 app = FastAPI()
 
-# ✅ Proper CORS for Vercel (must allow OPTIONS too)
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_methods=["POST"],
     allow_headers=["*"],
 )
 
@@ -20,13 +20,9 @@ class RequestBody(BaseModel):
     regions: List[str]
     threshold_ms: float
 
-
 @app.post("/latency")
 async def latency(data: RequestBody):
-
-    # ✅ Safe file loading on Vercel
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(BASE_DIR, "../q-vercel-latency.json")
+    file_path = os.path.join(os.path.dirname(__file__), "..", "q-vercel-latency.json")
 
     with open(file_path) as f:
         records = json.load(f)
@@ -43,14 +39,8 @@ async def latency(data: RequestBody):
         uptimes = [r["uptime"] for r in region_records]
 
         avg_latency = statistics.mean(latencies)
-
-        # Proper p95 calculation
-        sorted_lat = sorted(latencies)
-        index = int(0.95 * len(sorted_lat)) - 1
-        p95_latency = sorted_lat[max(index, 0)]
-
+        p95_latency = sorted(latencies)[int(len(latencies) * 0.95) - 1]
         avg_uptime = statistics.mean(uptimes)
-
         breaches = sum(1 for l in latencies if l > data.threshold_ms)
 
         response[region] = {
