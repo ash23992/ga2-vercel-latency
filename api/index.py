@@ -36,10 +36,12 @@ async def latency(data: RequestBody):
             continue
 
         latencies = [r["latency_ms"] for r in region_records]
-        uptimes = [r["uptime"] for r in region_records]
+        uptimes = [r["uptime_pct"] for r in region_records]
+
 
         avg_latency = statistics.mean(latencies)
-        p95_latency = sorted(latencies)[int(len(latencies) * 0.95) - 1]
+        p95_latency = statistics.quantiles(latencies, n=100)[94]
+
         avg_uptime = statistics.mean(uptimes)
         breaches = sum(1 for l in latencies if l > data.threshold_ms)
 
