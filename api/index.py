@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
@@ -8,17 +8,29 @@ import os
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 class RequestBody(BaseModel):
     regions: List[str]
     threshold_ms: float
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
 
 @app.post("/")
 async def latency(data: RequestBody):
@@ -38,10 +50,8 @@ async def latency(data: RequestBody):
         latencies = [r["latency_ms"] for r in region_records]
         uptimes = [r["uptime_pct"] for r in region_records]
 
-
         avg_latency = statistics.mean(latencies)
         p95_latency = statistics.quantiles(latencies, n=100)[94]
-
         avg_uptime = statistics.mean(uptimes)
         breaches = sum(1 for l in latencies if l > data.threshold_ms)
 
